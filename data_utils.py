@@ -5,6 +5,47 @@ import tensorflow as tf
 import pickle
 import codecs
 
+
+def batch_generator(arr, n_seqs, n_steps):
+    arr = copy.copy(arr)
+    batch_size = n_seqs * n_steps
+    n_batches = int(len(arr) / batch_size)
+    arr = arr[:batch_size * n_batches]
+    arr = arr.reshape((n_seqs, -1))
+    while True:
+        np.random.shuffle(arr)
+        for n in range(0, arr.shape[1], n_steps):
+            x = arr[:, n:n + n_steps]
+            y = np.zeros_like(x)
+            y[:, :-1], y[:, -1] = x[:, 1:], x[:, 0]
+            yield x, y
+
+def create_batches(arr, batch_size, seq_length):
+    arr = copy.copy(arr)
+    num_batches = int(len(arr) / (batch_size * seq_length))
+
+    xdata = arr[:num_batches * batch_size * seq_length]
+    ydata = np.copy(xdata)
+    # ydata为xdata的左循环移位，例如x为[1,2,3,4,5]，y就为[2,3,4,5,1]
+    # 因为y是x的下一个字符
+    ydata[:-1] = xdata[1:]
+    ydata[-1] = xdata[0]
+    # x_batches 的 shape 就是 223 × 50 × 100
+    x_batches = np.split(xdata.reshape(batch_size, -1),
+                              num_batches, 1)
+    y_batches = np.split(ydata.reshape(batch_size, -1),
+                              num_batches, 1)
+    return x_batches, y_batches
+
+
+def next_batch(x_batches, y_batches, pointer):
+    x, y = x_batches[pointer], y_batches[pointer]
+    pointer += 1
+    return x, y, pointer
+
+
+
+
 class TextConverter(object):
     def __init__(self, text, filename=None):
         if filename is not None:
@@ -34,8 +75,8 @@ class TextConverter(object):
         return len(self.vocab) + 1
 
     def word_to_int(self, word):
-        if word in self.word_to_int_table:
-            return self.word_to_int_table[word]
+        if word in self.char2int:
+            return self.char2int[word]
         else:
             return len(self.vocab)
 
@@ -43,7 +84,7 @@ class TextConverter(object):
         if index == len(self.vocab):
             return '<unk>'
         elif index < len(self.vocab):
-            return self.int_to_word_table[index]
+            return self.int2char[index]
         else:
             raise Exception('Unknown index!')
 
