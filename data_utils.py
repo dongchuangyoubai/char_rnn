@@ -24,7 +24,7 @@ def batch_generator(arr, batch_size, seq_length):
 
 
 class TextConverter(object):
-    def __init__(self, text, filename=None):
+    def __init__(self, text=None, filename=None):
         if filename is not None:
             with open(filename, 'rb') as f:
                 self.vocab = pickle.load(f)
