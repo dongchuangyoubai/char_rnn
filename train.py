@@ -16,9 +16,9 @@ tf.flags.DEFINE_integer('embedding_size', 128, 'size of embedding')
 tf.flags.DEFINE_float('learning_rate', 0.001, 'learning_rate')
 tf.flags.DEFINE_float('train_keep_prob', 0.5, 'dropout rate during training')
 tf.flags.DEFINE_string('input_file', 'data/shakespeare.txt', 'utf8 encoded text file')
-tf.flags.DEFINE_integer('max_steps', 10000, 'max steps to train')
-tf.flags.DEFINE_integer('save_every_n', 1000, 'save the model every n steps')
-tf.flags.DEFINE_integer('log_every_n', 100, 'log to the screen every n steps')
+tf.flags.DEFINE_integer('max_steps', 14290, 'max steps to train')
+tf.flags.DEFINE_integer('save_every_n', 1429, 'save the model every n steps')
+tf.flags.DEFINE_integer('log_every_n', 1429, 'log to the screen every n steps')
 tf.flags.DEFINE_integer('max_vocab', 3500, 'max char number')
 
 
