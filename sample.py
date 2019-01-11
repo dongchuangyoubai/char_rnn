@@ -6,12 +6,12 @@ import os
 FLAGS = tf.flags.FLAGS
 
 tf.flags.DEFINE_integer('lstm_size', 128, 'size of hidden state of lstm')
-tf.flags.DEFINE_integer('num_layers', 2, 'number of lstm layers')
+tf.flags.DEFINE_integer('num_layers', 3, 'number of lstm layers')
 tf.flags.DEFINE_boolean('use_embedding', False, 'whether to use embedding')
 tf.flags.DEFINE_integer('embedding_size', 128, 'size of embedding')
 tf.flags.DEFINE_string('converter_path', '', 'model/name/converter.pkl')
 tf.flags.DEFINE_string('checkpoint_path', '', 'checkpoint path')
-tf.flags.DEFINE_string('start_string', 'B', 'use this string to start generating')
+tf.flags.DEFINE_string('start_string', 'H', 'use this string to start generating')
 tf.flags.DEFINE_integer('max_length', 30, 'max length to generate')
 
 

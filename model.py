@@ -16,9 +16,10 @@ def pick_top_n(preds, vocab_size, top_n=5):
     return c
 
 class Model:
-    def __init__(self, num_classes, batch_size=50, seq_length=64,
+    def __init__(self, num_classes, log_dir, batch_size=50, seq_length=64,
                  lstm_size=128, num_layers=2, learning_rate=0.001,
-                 grad_clip=5, sampling=False, train_keep_prob=0.5, use_embedding=False, embedding_size=128):
+                 grad_clip=5, sampling=False, train_keep_prob=0.5,
+                 use_embedding=False, embedding_size=128):
         if sampling is True:
             seq_length, batch_size = 1, 1
         else:
@@ -34,6 +35,7 @@ class Model:
         self.train_keep_prob = train_keep_prob
         self.use_embedding = use_embedding
         self.embedding_size = embedding_size
+        self.log_dir = log_dir
 
         tf.reset_default_graph()
         self.build_inputs()
@@ -41,6 +43,7 @@ class Model:
         self.build_loss()
         self.build_optimizer()
         self.saver = tf.train.Saver()
+        self.summaries = tf.summary.merge_all()
 
     def build_inputs(self):
         with tf.name_scope('inputs'):
@@ -85,6 +88,7 @@ class Model:
 
             self.logits = tf.matmul(x, softmax_w) + softmax_b
             self.proba_prediction = tf.nn.softmax(self.logits, name='predictions')
+            tf.summary.histogram('logits', self.logits)
 
     def build_loss(self):
         with tf.name_scope('loss'):
@@ -92,18 +96,26 @@ class Model:
             y_reshaped = tf.reshape(y_one_hot, self.logits.get_shape())
             loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.logits, labels=y_reshaped)
             self.loss = tf.reduce_mean(loss)
+            tf.summary.histogram('loss', self.loss)
 
     def build_optimizer(self):
         # 使用clipping gradients
-        tvars = tf.trainable_variables()
-        grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), self.grad_clip)
+        # tvars = tf.trainable_variables()
+        # grads, _ = tf.clip_by_global_norm(tf.gradients(self.loss, tvars), self.grad_clip)
+        # train_op = tf.train.AdamOptimizer(self.learning_rate)
+        # self.optimizer = train_op.apply_gradients(zip(grads, tvars))
         train_op = tf.train.AdamOptimizer(self.learning_rate)
-        self.optimizer = train_op.apply_gradients(zip(grads, tvars))
+        self.optimizer = train_op.minimize(self.loss)
 
-    def train(self, batch_generator, max_steps, save_path, save_every_n, log_every_n):
+    def train(self, batch_generator, max_steps, save_path, save_every_n, log_every_n, log_dir):
         self.session = tf.Session()
         with self.session as sess:
             sess.run(tf.global_variables_initializer())
+
+
+            writer = tf.summary.FileWriter(log_dir)
+            writer.add_graph(sess.graph)
+
             # Train network
             step = 0
             new_state = sess.run(self.initial_state)
@@ -114,11 +126,14 @@ class Model:
                         self.targets: y,
                         self.keep_prob: self.train_keep_prob,
                         self.initial_state: new_state}
-                batch_loss, new_state, _ = sess.run([self.loss,
-                                                     self.final_state,
-                                                     self.optimizer],
+                summ, batch_loss, new_state, _ = sess.run([
+                                                    self.summaries,
+                                                    self.loss,
+                                                    self.final_state,
+                                                    self.optimizer],
                                                     feed_dict=feed)
-
+                # print(summ)
+                writer.add_summary(summ, step)
                 end = time.time()
                 # control the print lines
                 if step % log_every_n == 0:
@@ -130,6 +145,7 @@ class Model:
                 if step >= max_steps:
                     break
             self.saver.save(sess, os.path.join(save_path, 'model'), global_step=step)
+            writer.close()
 
     def sample(self, n_samples, prime, vocab_size):
         samples = [c for c in prime]
