@@ -1,49 +1,26 @@
 import numpy as np
 import copy
-import time
 import tensorflow as tf
 import pickle
 import codecs
 
 
-def batch_generator(arr, n_seqs, n_steps):
+def batch_generator(arr, batch_size, seq_length):
     arr = copy.copy(arr)
-    batch_size = n_seqs * n_steps
-    n_batches = int(len(arr) / batch_size)
-    arr = arr[:batch_size * n_batches]
-    arr = arr.reshape((n_seqs, -1))
+    # print(arr[:10])
+    # print(len(arr))
+    n_batches = int(len(arr) / (batch_size * seq_length))
+    # print(n_batches)
+    arr = arr[:batch_size * seq_length * n_batches]
+    arr = arr.reshape((seq_length, -1))
+    # print(arr.shape)
     while True:
         np.random.shuffle(arr)
-        for n in range(0, arr.shape[1], n_steps):
-            x = arr[:, n:n + n_steps]
+        for n in range(0, arr.shape[1], batch_size):
+            x = arr[:, n: n + batch_size]
             y = np.zeros_like(x)
             y[:, :-1], y[:, -1] = x[:, 1:], x[:, 0]
             yield x, y
-
-def create_batches(arr, batch_size, seq_length):
-    arr = copy.copy(arr)
-    num_batches = int(len(arr) / (batch_size * seq_length))
-
-    xdata = arr[:num_batches * batch_size * seq_length]
-    ydata = np.copy(xdata)
-    # ydata为xdata的左循环移位，例如x为[1,2,3,4,5]，y就为[2,3,4,5,1]
-    # 因为y是x的下一个字符
-    ydata[:-1] = xdata[1:]
-    ydata[-1] = xdata[0]
-    # x_batches 的 shape 就是 223 × 50 × 100
-    x_batches = np.split(xdata.reshape(batch_size, -1),
-                              num_batches, 1)
-    y_batches = np.split(ydata.reshape(batch_size, -1),
-                              num_batches, 1)
-    return x_batches, y_batches
-
-
-def next_batch(x_batches, y_batches, pointer):
-    x, y = x_batches[pointer], y_batches[pointer]
-    pointer += 1
-    return x, y, pointer
-
-
 
 
 class TextConverter(object):
@@ -107,7 +84,24 @@ class TextConverter(object):
 
 if __name__ == '__main__':
     FLAGS = tf.flags.FLAGS
+    tf.flags.DEFINE_string('name', 'default', 'name of the model')
+    tf.flags.DEFINE_integer('batch_size', 32, 'length of one seq')
+    tf.flags.DEFINE_integer('seq_length', 100, 'number of seqs in one batch')
+    tf.flags.DEFINE_integer('lstm_size', 128, 'size of hidden state of lstm')
+    tf.flags.DEFINE_integer('num_layers', 2, 'number of lstm layers')
+    tf.flags.DEFINE_boolean('use_embedding', False, 'whether to use embedding')
+    tf.flags.DEFINE_integer('embedding_size', 128, 'size of embedding')
+    tf.flags.DEFINE_float('learning_rate', 0.001, 'learning_rate')
+    tf.flags.DEFINE_float('train_keep_prob', 0.5, 'dropout rate during training')
     tf.flags.DEFINE_string('input_file', 'data/shakespeare.txt', 'utf8 encoded text file')
+    tf.flags.DEFINE_integer('max_steps', 100000, 'max steps to train')
+    tf.flags.DEFINE_integer('save_every_n', 1000, 'save the model every n steps')
+    tf.flags.DEFINE_integer('log_every_n', 10, 'log to the screen every n steps')
+    tf.flags.DEFINE_integer('max_vocab', 3500, 'max char number')
     with codecs.open(FLAGS.input_file, encoding='utf-8') as f:
         text = f.read()
-    t = TextConverter(text)
+
+    converter = TextConverter(text)
+    arr = converter.text_to_arr(text)
+    g = batch_generator(arr, FLAGS.batch_size, FLAGS.seq_length)
+

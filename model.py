@@ -16,17 +16,17 @@ def pick_top_n(preds, vocab_size, top_n=5):
     return c
 
 class Model:
-    def __init__(self, num_classes, num_seqs=64, num_steps=50,
+    def __init__(self, num_classes, batch_size=50, seq_length=64,
                  lstm_size=128, num_layers=2, learning_rate=0.001,
                  grad_clip=5, sampling=False, train_keep_prob=0.5, use_embedding=False, embedding_size=128):
         if sampling is True:
-            num_seqs, num_steps = 1, 1
+            seq_length, batch_size = 1, 1
         else:
-            num_seqs, num_steps = num_seqs, num_steps
+            seq_length, batch_size = seq_length, batch_size
 
         self.num_classes = num_classes
-        self.num_seqs = num_seqs
-        self.num_steps = num_steps
+        self.seq_length = seq_length
+        self.batch_size = batch_size
         self.lstm_size = lstm_size
         self.num_layers = num_layers
         self.learning_rate = learning_rate
@@ -45,9 +45,9 @@ class Model:
     def build_inputs(self):
         with tf.name_scope('inputs'):
             self.inputs = tf.placeholder(tf.int32, shape=(
-                self.num_seqs, self.num_steps), name='inputs')
+                self.seq_length, self.batch_size), name='inputs')
             self.targets = tf.placeholder(tf.int32, shape=(
-                self.num_seqs, self.num_steps), name='targets')
+                self.seq_length, self.batch_size), name='targets')
             self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
             # 对于中文，需要使用embedding层
@@ -70,7 +70,7 @@ class Model:
             cell = tf.nn.rnn_cell.MultiRNNCell(
                 [get_a_cell(self.lstm_size, self.keep_prob) for _ in range(self.num_layers)]
             )
-            self.initial_state = cell.zero_state(self.num_seqs, tf.float32)
+            self.initial_state = cell.zero_state(self.seq_length, tf.float32)
 
             # 通过dynamic_rnn对cell展开时间维度
             self.lstm_outputs, self.final_state = tf.nn.dynamic_rnn(cell, self.lstm_inputs, initial_state=self.initial_state)
